@@ -1,0 +1,142 @@
+version: '3.8'
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    image: php
+    container_name: app
+    restart: unless-stopped
+    tty: true
+    stdin_open: true
+    environment:
+      SERVICE_NAME: app
+      SERVICE_TAGS: dev
+    working_dir: /var/www
+    volumes:
+      - ./src/:/var/www
+      - ./php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    depends_on:
+      - redis
+      - pgdb
+    networks:
+      - invoice-network
+
+  #Nginx Service
+  webhost:
+    image: nginx:alpine
+    container_name: webhost
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "80:80"
+    volumes:
+      - ./src:/var/www
+      - ./docker/nginx/conf.d/:/etc/nginx/conf.d/
+      - ./nginx/ssl/:/etc/nginx/ssl/
+    networks:
+      - invoice-network
+    depends_on:
+      - app
+
+
+  pgdb:
+      image: postgres
+      container_name: postgresql
+      environment:
+        - POSTGRES_DB=invoice
+        - POSTGRES_USER=hamed
+        - POSTGRES_PASSWORD=Hh121213
+
+      volumes:
+        - ./pgdata:/var/lib/postgresql/data
+      restart: unless-stopped
+      ports:
+        - "5432:5432"
+      networks:
+        - invoice-network
+
+  redis:
+    image: redis:4.0
+    container_name: app_redis
+    restart: unless-stopped
+    ports:
+      - "6382:6379"
+    networks:
+      - invoice-network
+
+
+  #  pgbackups:
+  #    image: prodrigestivill/postgres-backup-local
+  #    restart: always
+  #    user: postgres:postgres
+  #
+  #    volumes:
+  #      - /var/opt/pgbackups:/backups
+  #    links:
+  #      - pgdb
+  #    depends_on:
+  #      - pgdb
+  #    environment:
+  #      - POSTGRES_HOST=pgdb
+  #      - POSTGRES_DB=bitbox_db
+  #      - POSTGRES_USER=jamshid
+  #      - POSTGRES_PASSWORD=Hh121213
+  #      #  - POSTGRES_PASSWORD_FILE=/run/secrets/db_password <-- alternative for POSTGRES_PASSWORD (to use with docker secrets)
+  #      - POSTGRES_EXTRA_OPTS=-Z9 --schema=public --blobs
+  #      - SCHEDULE=@daily
+  #      - BACKUP_KEEP_DAYS=7
+  #      - BACKUP_KEEP_WEEKS=4
+  #      - BACKUP_KEEP_MONTHS=6
+  #      - HEALTHCHECK_PORT=8080
+  #
+  #    networks:
+  #      - bitbox-network
+
+
+
+
+
+  #  queue:
+  #    image: php
+  #    container_name: laravel-queue
+  #    restart: unless-stopped
+  #    tty: true
+  #    depends_on:
+  #      - app
+  #    volumes:
+  #      - ./src/:/var/www
+  #    environment:
+  #      APP_ENV: local
+  #      CONTAINER_ROLE: queue
+  #
+  #    networks:
+  #      - bitbox-network
+  # redis_cache:
+  #   image: redis:alpine
+  #   container_name: redis
+  #   command: redis-server --requirepass redisPassword
+  #   restart: unless-stopped
+  #   ports:
+  #     - "6330:6379"
+  # #  volumes:
+  # #    - ./data/redis:/data
+
+  #   networks:
+  #     - wallet-network
+
+
+
+
+
+
+
+##Docker Networks
+networks:
+  invoice-network:
+    driver: bridge
+#Volumes
+volumes:
+  dbdata:
+    driver: local
